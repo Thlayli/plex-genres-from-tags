@@ -10,6 +10,7 @@ from plexapi.mixins import EditFieldMixin,EditTagsMixin
 account = MyPlexAccount('xxxxxxxxxxxx')
 plex = account.resource('xxxxxxxx').connect()
 library_number = ##
+search_string = ''
 tag_delimiter = ";"
 copy_to_styles = True
 verbose_mode = True
@@ -31,7 +32,7 @@ album_genres = set()
 
 print("\n")
 
-for artist in tqdm(library.search(libtype='artist'), desc="Scanning Tags"):
+for artist in tqdm(library.search(search_string, libtype='artist'), desc="Scanning Tags"):
 
   j = 0
   artist.reload()
@@ -93,7 +94,7 @@ for artist in tqdm(library.search(libtype='artist'), desc="Scanning Tags"):
           tqdm.write("│ │     Tags: "+str(list(album_genres)))
           
           # save tags for album
-          album_changes.append([artist.title+' - '+album.title,album.key,list(album_genres)])
+          album_changes.append([artist.title+' - '+album.title,album.key,list(album_genres).reverse()])
 
           gcount = 0
           scount = 0
@@ -127,7 +128,7 @@ for artist in tqdm(library.search(libtype='artist'), desc="Scanning Tags"):
         tqdm.write("│ └    Error: "+str(str(e).split(";")[0]))
     
     # save tags for artist
-    artist_changes.append([artist.title,artist.key,list(artist_genres)])
+    artist_changes.append([artist.title,artist.key,list(artist_genres).reverse()])
 
   except PlexApiException as err:
     tqdm.write('│  Error: '+str(err))
