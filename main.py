@@ -15,9 +15,7 @@ tag_delimiter = ";"
 copy_to_styles = True
 verbose_mode = True
 lock_fields = True
-path_aliases = [
-  ['E:', 'M:']
-]
+path_aliases = []
 
 # end user variables section
 
