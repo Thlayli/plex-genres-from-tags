@@ -70,7 +70,8 @@ for artist in tqdm(library.search(search_string,libtype='artist'), desc="Scannin
       for alias in path_aliases:
         file = file.replace(alias[0], alias[1])
         
-      tqdm.write("│ │   Source: "+file)
+      if verbose_mode:
+        tqdm.write("│ │   Source: "+file)
       j = j+1
       
       # extract genre tags
