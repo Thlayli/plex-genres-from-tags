@@ -32,7 +32,7 @@ album_genres = set()
 
 print("\n")
 
-for artist in tqdm(library.search(search_string, libtype='artist'), desc="Scanning Tags"):
+for artist in tqdm(library.search(search_string,libtype='artist'), desc="Scanning Tags"):
 
   j = 0
   artist.reload()
@@ -94,8 +94,10 @@ for artist in tqdm(library.search(search_string, libtype='artist'), desc="Scanni
           tqdm.write("│ │     Tags: "+str(list(album_genres)))
           
           # save tags for album
-          album_changes.append([artist.title+' - '+album.title,album.key,list(album_genres).reverse()])
-
+          album_rev = list(album_genres)
+          album_rev.reverse()
+          album_changes.append([artist.title+' - '+album.title,album.key,album_rev])
+         
           gcount = 0
           scount = 0
           
@@ -128,7 +130,9 @@ for artist in tqdm(library.search(search_string, libtype='artist'), desc="Scanni
         tqdm.write("│ └    Error: "+str(str(e).split(";")[0]))
     
     # save tags for artist
-    artist_changes.append([artist.title,artist.key,list(artist_genres).reverse()])
+    artist_rev = list(artist_genres)
+    artist_rev.reverse()
+    artist_changes.append([artist.title,artist.key,artist_rev])
 
   except PlexApiException as err:
     tqdm.write('│  Error: '+str(err))
@@ -143,13 +147,13 @@ for change in tqdm(album_changes, desc="Changing Albums"):
     tqdm.write("┌ Fixing: "+str(change[0]))
     album = library.fetchItem(change[1])
     if verbose_mode:
-      tqdm.write('│ Adding: '+str(list(change[2])))
+      tqdm.write('│ Adding: '+str(change[2]))
     if copy_to_styles:
-      album.editTags("genre", list(change[2]), lock_value)
-      album.editTags("style", list(change[2]), lock_value)
+      album.editTags("genre", change[2], lock_value)
+      album.editTags("style", change[2], lock_value)
       tqdm.write("└  Added: "+str(len(change[2]))+" genres/styles")
     else:
-      album.editTags("genre", list(change[2]), lock_value)
+      album.editTags("genre", change[2], lock_value)
       tqdm.write("└  Added: "+str(len(change[2]))+" genres")
   except PlexApiException as err:
     tqdm.write('└  Error: '+str(err))
@@ -162,13 +166,13 @@ for change in tqdm(artist_changes, desc="Changing Artists"):
     tqdm.write("┌ Fixing: "+str(change[0]))
     artist = library.fetchItem(change[1])
     if verbose_mode:
-      tqdm.write('│ Adding: '+str(list(change[2])))
+      tqdm.write('│ Adding: '+str(change[2]))
     if copy_to_styles:
-      artist.editTags("genre", list(change[2]), lock_value)
-      artist.editTags("style", list(change[2]), lock_value)
+      artist.editTags("genre", change[2], lock_value)
+      artist.editTags("style", change[2], lock_value)
       tqdm.write("└  Added: "+str(len(change[2]))+" genres/styles")
     else:
-      artist.editTags("genre", list(change[2]), lock_value)
+      artist.editTags("genre", change[2], lock_value)
       tqdm.write("└ Added: "+str(len(change[2]))+" genres")
   except PlexApiException as err:
     tqdm.write('└  Error: '+str(err))
