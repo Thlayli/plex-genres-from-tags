@@ -93,9 +93,9 @@ for artist in tqdm(library.search(search_string,libtype='artist'), desc="Scannin
           tqdm.write("│ │     Tags: "+str(list(album_genres)))
           
           # flip tags for album
-          album_rev = list(album_genres)
-          album_rev.reverse()
-          album_changes.append([artist.title+' - '+album.title,album.key,album_rev])
+          album_glist = list(album_genres)
+          # album_glist.reverse()
+          album_changes.append([artist.title+' - '+album.title,album.key,album_glist])
 
           # clear existing genres
           if hasattr(album,'genres') and album.genres:
@@ -106,32 +106,31 @@ for artist in tqdm(library.search(search_string,libtype='artist'), desc="Scannin
 
           # clear existing styles
           if copy_to_styles and album.genres:
+            scount = 0
             if hasattr(album,'styles') and artist.styles:
               if verbose_mode:
                 tqdm.write("│ │ Removing: "+str([style.tag for style in album.styles])+" from styles")
               scount = len(album.styles)
               album.removeStyle([style.tag for style in album.styles], False)
-            tqdm.write("│ └  Removed: "+str(gcount)+" genres & "+str(scount)+" styles")
+            tqdm.write("│ │  Removed: "+str(gcount)+" genres & "+str(scount)+" styles")
           else:
             if album.genres:
-              tqdm.write("│ └  Removed: "+str(gcount)+" genres")
-            else:
-              tqdm.write("│ └")
+              tqdm.write("│ │  Removed: "+str(gcount)+" genres")
 
           # make album changes
           try:
             album_direct = library.fetchItem(album.key)
             if verbose_mode:
-              tqdm.write('│ │  Adding: '+str(album_rev))
+              tqdm.write('│ │  Adding: '+str(album_glist))
             if copy_to_styles:
-              album_direct.editTags("genre", album_rev, lock_value)
-              album_direct.editTags("style", album_rev, lock_value)
-              tqdm.write("│ │    Added: "+str(len(album_rev))+" genres/styles")
+              album_direct.editTags("genre", album_glist, lock_value)
+              album_direct.editTags("style", album_glist, lock_value)
+              tqdm.write("│ └    Added: "+str(len(album_glist))+" genres/styles")
             else:
-              album_direct.editTags("genre", album_rev, lock_value)
-              tqdm.write("│ │    Added: "+str(len(album_rev))+" genres")
+              album_direct.editTags("genre", album_glist, lock_value)
+              tqdm.write("│ └    Added: "+str(len(album_glist))+" genres")
           except PlexApiException as err:
-            tqdm.write('│ │    Error: '+str(err))
+            tqdm.write('│ └    Error: '+str(err))
               
           gcount = 0
           scount = 0
@@ -144,23 +143,23 @@ for artist in tqdm(library.search(search_string,libtype='artist'), desc="Scannin
         tqdm.write("│ └    Error: "+str(str(e).split(";")[0]))
     
     # save tags for artist
-    artist_rev = list(artist_genres)
-    artist_rev.reverse()
-    artist_changes.append([artist.title,artist.key,artist_rev])
+    artist_glist = list(artist_genres)
+    # artist_glist.reverse()
+    artist_changes.append([artist.title,artist.key,artist_glist])
 
 
     # make artist changes
     try:
       artist_direct = library.fetchItem(artist.key)
       if verbose_mode:
-        tqdm.write('│  Adding: '+str(artist_rev))
+        tqdm.write('│  Adding: '+str(artist_glist))
       if copy_to_styles:
-        artist_direct.editTags("genre", artist_rev, lock_value)
-        artist_direct.editTags("style", artist_rev, lock_value)
-        tqdm.write("│    Added: "+str(len(artist_rev))+" genres/styles")
+        artist_direct.editTags("genre", artist_glist, lock_value)
+        artist_direct.editTags("style", artist_glist, lock_value)
+        tqdm.write("│    Added: "+str(len(artist_glist))+" genres/styles")
       else:
-        artist_direct.editTags("genre", artist_rev, lock_value)
-        tqdm.write("│   Added: "+str(len(artist_rev))+" genres")
+        artist_direct.editTags("genre", artist_glist, lock_value)
+        tqdm.write("│   Added: "+str(len(artist_glist))+" genres")
     except PlexApiException as err:
       tqdm.write('│    Error: '+str(err))
 
