@@ -92,14 +92,11 @@ for artist in tqdm(library.search(search_string,libtype='artist'), desc="Scannin
               artist_genres.add(genre)
           tqdm.write("│ │     Tags: "+str(list(album_genres)))
           
-          # save tags for album
+          # flip tags for album
           album_rev = list(album_genres)
           album_rev.reverse()
           album_changes.append([artist.title+' - '+album.title,album.key,album_rev])
-         
-          gcount = 0
-          scount = 0
-          
+
           # clear existing genres
           if hasattr(album,'genres') and album.genres:
             if verbose_mode:
@@ -121,6 +118,24 @@ for artist in tqdm(library.search(search_string,libtype='artist'), desc="Scannin
             else:
               tqdm.write("│ └")
 
+          # make album changes
+          try:
+            album_direct = library.fetchItem(album.key)
+            if verbose_mode:
+              tqdm.write('│ │  Adding: '+str(album_rev))
+            if copy_to_styles:
+              album_direct.editTags("genre", album_rev, lock_value)
+              album_direct.editTags("style", album_rev, lock_value)
+              tqdm.write("│ │    Added: "+str(len(album_rev))+" genres/styles")
+            else:
+              album_direct.editTags("genre", album_rev, lock_value)
+              tqdm.write("│ │    Added: "+str(len(album_rev))+" genres")
+          except PlexApiException as err:
+            tqdm.write('│ │    Error: '+str(err))
+              
+          gcount = 0
+          scount = 0
+          
 
         else:
          tqdm.write("│ └    Error: can't read tags")
@@ -133,6 +148,23 @@ for artist in tqdm(library.search(search_string,libtype='artist'), desc="Scannin
     artist_rev.reverse()
     artist_changes.append([artist.title,artist.key,artist_rev])
 
+
+    # make artist changes
+    try:
+      artist_direct = library.fetchItem(artist.key)
+      if verbose_mode:
+        tqdm.write('│  Adding: '+str(artist_rev))
+      if copy_to_styles:
+        artist_direct.editTags("genre", artist_rev, lock_value)
+        artist_direct.editTags("style", artist_rev, lock_value)
+        tqdm.write("│    Added: "+str(len(artist_rev))+" genres/styles")
+      else:
+        artist_direct.editTags("genre", artist_rev, lock_value)
+        tqdm.write("│   Added: "+str(len(artist_rev))+" genres")
+    except PlexApiException as err:
+      tqdm.write('│    Error: '+str(err))
+
+
   except PlexApiException as err:
     tqdm.write('│  Error: '+str(err))
 
@@ -140,40 +172,4 @@ for artist in tqdm(library.search(search_string,libtype='artist'), desc="Scannin
   
 print("\n")
 
-# make album changes
-for change in tqdm(album_changes, desc="Changing Albums"):
-  try:
-    tqdm.write("┌ Fixing: "+str(change[0]))
-    album = library.fetchItem(change[1])
-    if verbose_mode:
-      tqdm.write('│ Adding: '+str(change[2]))
-    if copy_to_styles:
-      album.editTags("genre", change[2], lock_value)
-      album.editTags("style", change[2], lock_value)
-      tqdm.write("└  Added: "+str(len(change[2]))+" genres/styles")
-    else:
-      album.editTags("genre", change[2], lock_value)
-      tqdm.write("└  Added: "+str(len(change[2]))+" genres")
-  except PlexApiException as err:
-    tqdm.write('└  Error: '+str(err))
-    
-print("\n")
-
-# make artist changes
-for change in tqdm(artist_changes, desc="Changing Artists"):
-  try:
-    tqdm.write("┌ Fixing: "+str(change[0]))
-    artist = library.fetchItem(change[1])
-    if verbose_mode:
-      tqdm.write('│ Adding: '+str(change[2]))
-    if copy_to_styles:
-      artist.editTags("genre", change[2], lock_value)
-      artist.editTags("style", change[2], lock_value)
-      tqdm.write("└  Added: "+str(len(change[2]))+" genres/styles")
-    else:
-      artist.editTags("genre", change[2], lock_value)
-      tqdm.write("└ Added: "+str(len(change[2]))+" genres")
-  except PlexApiException as err:
-    tqdm.write('└  Error: '+str(err))
-
-print("\r\n",str(len(artist_changes)),"artists had genres updated from "+str(len(album_changes))+' albums')
+print(str(len(artist_changes)),"artists had genres updated from "+str(len(album_changes))+' albums')
