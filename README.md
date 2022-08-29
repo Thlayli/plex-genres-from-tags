@@ -8,12 +8,12 @@ Customize the following:
 - plex (friendly server name from settings page)
 - library_number (found in the URL as source= when browsing a library)
 - search_string (optional artist name, limit which artist(s) are changed, matches partial names)
-- skip_artists = ['Various Artists']
-- date_range [start date as yyyy-mm-dd OR #d, #w, #m, #y, e.g. 14d, 1y, etc.]
+- skip_artists = (list of strings to skip, e.g. ['Various Artists','Musical Cast'] )
+- date_range (start date as yyyy-mm-dd OR #d, #w, #m, #y, e.g. 14d, 1y, etc.)
 - tag delimiter (how tags are separated in your ID3 tags, usually ;)
 - starting_index (in case you have to stop the script. restarts from X index)
 - copy to styles (true/false - do you want the genre tags to also replace existing styles)
 - verbose mode (true/false - enables extra information while running)
 - lock albums (true/false - do you want the album genre/style fields to be locked after updating)
 - lock artists (true/false - do you want the artist genre/style fields to be locked after updating)
-- path aliases (list of string pairs - in case you're running the script from a different machine with different drive letters. All file paths will have these strings replaced.) e.g.  [['E:','H:']] will replace the server drive letter E with mapped drive letter H.
+- path aliases (list of string pairs - in case you're running the script from a different machine with different drive letters. All file paths will have these strings replaced.) e.g.  [['E:','H:'], ['F:','I:']] will replace the server drive letter E with mapped drive letter H and drive F with I
