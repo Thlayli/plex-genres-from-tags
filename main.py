@@ -12,16 +12,14 @@ plex = account.resource('xxxxxxxx').connect()
 library_number = ##
 search_string = ''
 skip_artists = ['Various Artists']
-date_range = '3d' # start date as yyyy-mm-dd or #d, #m, #y, etc.
+date_range = '' # start date as yyyy-mm-dd or #d, #m, #y, etc.
 tag_delimiter = ";"
 starting_index = 0
 copy_to_styles = True
 verbose_mode = False
 lock_albums = True
 lock_artists = False
-path_aliases = [
-  ['H:', 'D:']
-]
+path_aliases = []
 
 # end user variables section
 
