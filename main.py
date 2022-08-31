@@ -34,15 +34,24 @@ baseurl = str(plex._baseurl).replace('https://','')
 artist_changes = []
 album_changes = []
 collect_errors = []
+selected_artists = set()
 artist_genres = set()
 album_genres = set()
 j = 0;
-
 print("\n")
 
 try:
 
-  for artist in tqdm(library.search(filters=plex_filters,libtype='artist')[starting_index:], desc="Scanning Tags"):
+  # check recently added albums and collect artists
+  for album in tqdm(library.search(filters=plex_filters,libtype='album'), desc="Looking for Albums"):
+    selected_artists.add(album.parentKey)
+
+  for artist in tqdm(library.search(filters=plex_filters,libtype='artist'), desc="Looking for Artists"):
+    selected_artists.add(artist.key)
+
+  for artist_key in tqdm(list(selected_artists)[starting_index:], desc="Scanning Tags"):
+
+    artist = library.fetchItem(artist_key)
 
     if artist.title not in skip_artists:
 
@@ -187,8 +196,6 @@ try:
       
       tqdm.write("－ Skipping: "+str(artist.title))
 
-  print("\n")
-  
 except PlexApiException as err:
   collect_errors.append("Server Error: "+err)
   tqdm.write('│  Error: '+str(err))
