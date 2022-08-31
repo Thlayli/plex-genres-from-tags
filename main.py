@@ -7,14 +7,15 @@ from plexapi.mixins import EditFieldMixin,EditTagsMixin
 
 # start user variables section
 
-account = MyPlexAccount('xxxxxxxxxxxxxxxxxxxx')
-plex = account.resource('xxxxxxxx').connect()
+server_name = 'xxxxxxxx'
+token = 'xxxxxxxxxxxxxxxxxxxx'
 library_number = ##
+
 search_string = ''
-skip_artists = ['Various Artists']
-date_range = '' # start date as yyyy-mm-dd or #d, #m, #y, etc.
+date_range = ''
 tag_delimiter = ";"
 starting_index = 0
+skip_artists = ['Various Artists']
 copy_to_styles = True
 verbose_mode = False
 lock_albums = True
@@ -23,23 +24,25 @@ path_aliases = []
 
 # end user variables section
 
-j = 0;
+account = MyPlexAccount(token)
+plex = account.resource(server_name).connect()
 album_lock_bit = 1 if lock_albums else 0
 artist_lock_bit = 1 if lock_artists else 0
 library = plex.library.sectionByID(library_number)
+plex_filters = {"title": search_string, "addedAt>>": date_range} if date_range != '' else {"title": search_string}
 baseurl = str(plex._baseurl).replace('https://','')
 artist_changes = []
 album_changes = []
 collect_errors = []
 artist_genres = set()
 album_genres = set()
+j = 0;
 
 print("\n")
 
-
 try:
 
-  for artist in tqdm(library.search(filters={"title<": search_string, "addedAt>>": date_range},libtype='artist')[starting_index:], desc="Scanning Tags"):
+  for artist in tqdm(library.search(filters=plex_filters,libtype='artist')[starting_index:], desc="Scanning Tags"):
 
     if artist.title not in skip_artists:
 
