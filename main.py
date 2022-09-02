@@ -1,5 +1,6 @@
 import mutagen
 from mutagen import MutagenError
+import collections
 from tqdm import tqdm
 from plexapi.myplex import MyPlexAccount
 from plexapi.exceptions import PlexApiException
@@ -34,34 +35,33 @@ baseurl = str(plex._baseurl).replace('https://','')
 artist_changes = []
 album_changes = []
 collect_errors = []
-selected_artists = set()
-artist_genres = set()
-album_genres = set()
+artist_genres = []
+album_genres = []
+selected_artists = collections.OrderedDict()
 j = 0;
 print("\n")
 
 try:
 
-  # check recently added albums and collect artists
-  for album in tqdm(library.search(filters=plex_filters,libtype='album'), desc="Looking for Albums"):
-    selected_artists.add(album.parentKey)
+  # check recently added artists and albums
+  for artist in tqdm(library.search(sort="titleSort:asc",filters=plex_filters,libtype='artist'), desc="Looking for Artists"):
+    selected_artists.setdefault(artist.title,artist.key)
+    
+  for album in tqdm(library.search(sort="artist.titleSort:asc",filters=plex_filters,libtype='album'), desc="Looking for Albums"):
+    selected_artists.setdefault(album.parentTitle,album.parentKey)
 
-  for artist in tqdm(library.search(filters=plex_filters,libtype='artist'), desc="Looking for Artists"):
-    selected_artists.add(artist.key)
+  for (artist_title,artist_key) in tqdm(list(selected_artists.items())[starting_index:], desc="Scanning Tags"):
 
-  for artist_key in tqdm(list(selected_artists)[starting_index:], desc="Scanning Tags"):
-
-    artist = library.fetchItem(artist_key)
-
-    if artist.title not in skip_artists:
-
+    if not artist_title in skip_artists:
+    
       j = 0
+      artist = library.fetchItem(artist_key)
       artist.reload()
       artist_genres.clear()
       
       try:
 
-        tqdm.write("┌ Scanning: "+str(artist.title))
+        tqdm.write("┌ Scanning: "+str(artist_title))
         
         # remove existing artist genres
         if hasattr(artist,'genres') and artist.genres:
@@ -108,16 +108,19 @@ try:
                 if tag_delimiter in genre:
                   genre_split = genre.split(tag_delimiter)
                   for gs in genre_split:
-                     album_genres.add(gs.strip())
-                     artist_genres.add(gs.strip())
+                    if not gs in album_genres:
+                      album_genres.append(gs.strip())
+                      artist_genres.append(gs.strip())
                 else:
-                  album_genres.add(genre)
-                  artist_genres.add(genre)
-              tqdm.write("│ │     Tags: "+str(list(album_genres)))
+                  if not genre in album_genres:
+                    album_genres.append(genre.strip())
+                  if not genre in artist_genres:
+                    artist_genres.append(genre.strip())
               
               # list tags for album
               album_glist = list(dict.fromkeys(album_genres))
               album_changes.append([artist.title+' - '+album.title,album.key,album_glist])
+              tqdm.write("│ │     Tags: "+str(album_glist))
 
               # clear existing genres
               if hasattr(album,'genres') and album.genres:
@@ -180,12 +183,12 @@ try:
             artist_direct.editTags("genre", artist_glist, artist_lock_bit)
             tqdm.write("│   Added: "+str(len(artist_glist))+" genres")
         except PlexApiException as err:
-          collect_errors.append("Album Error: "+err)
+          collect_errors.append("Album Error: "+str(err))
           tqdm.write('│    Error: '+str(err))
 
 
       except PlexApiException as err:
-        collect_errors.append("Artist Error: "+err)
+        collect_errors.append("Artist Error: "+str(err))
         tqdm.write('│  Error: '+str(err))
 
       tqdm.write("└ "+(str(j)+" albums checked for "+artist.title)+"\n")
@@ -195,10 +198,9 @@ try:
       tqdm.write("－ Skipping: "+str(artist.title))
 
 except PlexApiException as err:
-  collect_errors.append("Server Error: "+err)
+  collect_errors.append("Server Error: "+str(err))
   tqdm.write('│  Error: '+str(err))
 
-
-print(str(len(artist_changes)),"artists had genres updated from "+str(len(album_changes))+' albums')
+print("\n"+str(len(artist_changes)),"artists had genres updated from "+str(len(album_changes))+' albums')
 if len(collect_errors) > 0:
   print("Errors:\n",str(collect_errors))
