@@ -45,12 +45,12 @@ try:
 
   # check recently added artists and albums
   for artist in tqdm(library.search(sort="titleSort:asc",filters=plex_filters,libtype='artist'), desc="Looking for Artists"):
-    selected_artists.setdefault(artist.title,artist.key)
+    selected_artists.setdefault(artist.key,artist.title)
     
   for album in tqdm(library.search(sort="artist.titleSort:asc",filters=plex_filters,libtype='album'), desc="Looking for Albums"):
-    selected_artists.setdefault(album.parentTitle,album.parentKey)
+    selected_artists.setdefault(album.parentKey,album.parentTitle)
 
-  for (artist_title,artist_key) in tqdm(list(selected_artists.items())[starting_index:], desc="Scanning Tags"):
+  for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_index:], desc="Scanning Tags", total=len(selected_artists),initial=starting_index):
 
     if not artist_title in skip_artists:
     
