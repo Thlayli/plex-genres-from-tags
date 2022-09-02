@@ -115,9 +115,8 @@ try:
                   artist_genres.add(genre)
               tqdm.write("│ │     Tags: "+str(list(album_genres)))
               
-              # flip tags for album
-              album_glist = list(album_genres)
-              # album_glist.reverse()
+              # list tags for album
+              album_glist = list(dict.fromkeys(album_genres))
               album_changes.append([artist.title+' - '+album.title,album.key,album_glist])
 
               # clear existing genres
@@ -164,9 +163,8 @@ try:
           except MutagenError as e:
             tqdm.write("│ └    Error: "+str(str(e).split(";")[0]))
         
-        # save tags for artist
-        artist_glist = list(artist_genres)
-        # artist_glist.reverse()
+        # list tags for artist
+        artist_glist = list(dict.fromkeys(artist_genres))
         artist_changes.append([artist.title,artist.key,artist_glist])
 
 
