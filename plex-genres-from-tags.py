@@ -5,6 +5,7 @@ from tqdm import tqdm
 from plexapi.myplex import MyPlexAccount
 from plexapi.exceptions import PlexApiException
 from plexapi.mixins import EditFieldMixin,EditTagsMixin
+from requests.exceptions import ConnectionError
 
 # start user variables section
 
@@ -22,6 +23,8 @@ verbose_mode = False
 lock_albums = True
 lock_artists = False
 path_aliases = []
+              
+ 
 
 # end user variables section
 
@@ -32,12 +35,12 @@ artist_lock_bit = 1 if lock_artists else 0
 library = plex.library.sectionByID(library_number)
 plex_filters = {"title": search_string, "addedAt>>": date_range} if date_range != '' else {"title": search_string}
 baseurl = str(plex._baseurl).replace('https://','')
+selected_artists = collections.OrderedDict()
 artist_changes = []
 album_changes = []
 collect_errors = []
 artist_genres = []
 album_genres = []
-selected_artists = collections.OrderedDict()
 j = 0;
 print("\n")
 
@@ -75,9 +78,10 @@ try:
             if verbose_mode:
               tqdm.write("│ Removing: "+str([style.tag for style in artist.styles])+" from styles")
             artist.removeStyle([style.tag for style in artist.styles], False)
+        if verbose_mode:
           tqdm.write("│  Removed: "+str(len(artist.genres))+" genres & "+str(len(artist.styles))+" styles")
         else:
-          if artist.genres:
+          if artist.genres and verbose_mode:
             tqdm.write("│  Removed: "+str(len(artist.genres))+" genres")
         
         # for each album
@@ -137,9 +141,10 @@ try:
                     tqdm.write("│ │ Removing: "+str([style.tag for style in album.styles])+" from styles")
                   scount = len(album.styles)
                   album.removeStyle([style.tag for style in album.styles], False)
+              if verbose_mode:
                 tqdm.write("│ │  Removed: "+str(gcount)+" genres & "+str(scount)+" styles")
               else:
-                if album.genres:
+                if album.genres and verbose_mode:
                   tqdm.write("│ │  Removed: "+str(gcount)+" genres")
 
               # make album changes
@@ -187,7 +192,7 @@ try:
           tqdm.write('│    Error: '+str(err))
 
 
-      except PlexApiException as err:
+      except ConnectionError as err:
         collect_errors.append("Artist Error: "+str(err))
         tqdm.write('│  Error: '+str(err))
 
@@ -197,7 +202,7 @@ try:
       
       tqdm.write("－ Skipping: "+str(artist.title))
 
-except PlexApiException as err:
+except ConnectionError as err:
   collect_errors.append("Server Error: "+str(err))
   tqdm.write('│  Error: '+str(err))
 
