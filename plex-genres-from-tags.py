@@ -137,7 +137,7 @@ try:
             # clear existing styles
             if copy_to_styles and album.genres:
               scount = 0
-              if hasattr(album,'styles') and artist.styles:
+              if hasattr(album,'styles') and album.styles:
                 if verbose_mode:
                   tqdm.write("│ │ Removing: "+str([style.tag for style in album.styles])+" from styles")
                 scount = len(album.styles)
