@@ -8,7 +8,7 @@ Customize the following:
 - server_name (friendly server name from settings page)
 - library_number (found in the URL as source= when browsing a library)
 - search_string (optional artist name, limit which artist(s) are changed, matches partial names)
-- skip_artists (optional list of strings to skip, e.g. ['Various Artists','Musical Cast'] )
+- skip_artists (optional list of artists to ignore, e.g. ['Various Artists'] - albums will still be updated.)
 - date_range (optional - change only recently-added albums and related artists - date as yyyy-mm-dd or duration e.g. 6h, 14d, or 1y)
 - tag delimiter (how tags are separated in your ID3 tags, usually ";")
 - starting_index (in case you have to stop the script. restarts from X index)
