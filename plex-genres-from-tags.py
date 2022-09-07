@@ -34,6 +34,7 @@ library = plex.library.sectionByID(library_number)
 plex_filters = {"title": search_string, "addedAt>>": date_range} if date_range != '' else {"title": search_string}
 baseurl = str(plex._baseurl).replace('https://','')
 selected_artists = collections.OrderedDict()
+skipped_artist_albums = collections.OrderedDict()
 artist_changes = []
 album_changes = []
 collect_errors = []
@@ -49,8 +50,14 @@ try:
     selected_artists.setdefault(artist.key,artist.title)
     
   for album in tqdm(library.search(sort="artist.titleSort:asc",filters=plex_filters,libtype='album'), desc="Looking for Albums"):
-    selected_artists.setdefault(album.parentKey,album.parentTitle)
-    
+    if not album.parentTitle in skip_artists:
+      selected_artists.setdefault(album.parentKey,album.parentTitle)
+    else:
+      # if skip_artists add albums individually to avoid refreshing all albums
+      selected_artists.setdefault(album.parentKey,album.parentTitle)
+      skipped_artist_albums.setdefault(album.parentTitle, {})
+      skipped_artist_albums[album.parentTitle].setdefault(album.key,album.title)
+
   if starting_index > len(selected_artists):
     starting_index = 0
     tqdm.write("Starting index out of range. Starting from 0.")
@@ -71,22 +78,34 @@ try:
       if hasattr(artist,'genres') and artist.genres:
         if verbose_mode:
           tqdm.write("│ Removing: "+str([genre.tag for genre in artist.genres])+" from genres")
-        artist.removeGenre([genre.tag for genre in artist.genres], False)
+        if not simulate_changes:
+          artist.removeGenre([genre.tag for genre in artist.genres], False)
 
       # remove existing artist styles
       if copy_to_styles and artist.genres:
         if hasattr(artist,'styles') and artist.styles:
           if verbose_mode:
             tqdm.write("│ Removing: "+str([style.tag for style in artist.styles])+" from styles")
-          artist.removeStyle([style.tag for style in artist.styles], False)
+          if not simulate_changes:
+            artist.removeStyle([style.tag for style in artist.styles], False)
         if verbose_mode:
           tqdm.write("│  Removed: "+str(len(artist.genres))+" genres & "+str(len(artist.styles))+" styles")
       else:
         if artist.genres and verbose_mode:
           tqdm.write("│  Removed: "+str(len(artist.genres))+" genres")
+
+      # set selected_albums to skipped_artist_albums if skip artist
+      if not artist.title in skip_artists:
+        selected_albums = artist.albums()
+      else:
+        selected_albums = []
+        if verbose_mode:
+          tqdm.write('│  Filter includes: '+str([v for (k,v) in skipped_artist_albums[artist_title].items()]))
+        for k in skipped_artist_albums[artist_title]:
+          selected_albums.append(library.fetchItem(k))
       
       # for each album
-      for album in artist.albums():
+      for album in selected_albums:
 
         album_genres.clear()
         tqdm.write("│ ┌ Scanning: "+str(album.title))
@@ -132,16 +151,18 @@ try:
               if verbose_mode:
                 tqdm.write("│ │ Removing: "+str([genre.tag for genre in album.genres])+" from genres")
               gcount = len(album.genres)
-              album.removeGenre([genre.tag for genre in album.genres], False)
+              if not simulate_changes:
+                album.removeGenre([genre.tag for genre in album.genres], False)
 
             # clear existing styles
-            if copy_to_styles and album.genres:
+            if copy_to_styles and album.styles:
               scount = 0
-              if hasattr(album,'styles') and album.styles:
+              if hasattr(album,'styles') and album.genres:
                 if verbose_mode:
                   tqdm.write("│ │ Removing: "+str([style.tag for style in album.styles])+" from styles")
                 scount = len(album.styles)
-                album.removeStyle([style.tag for style in album.styles], False)
+                if not simulate_changes:
+                  album.removeStyle([style.tag for style in album.styles], False)
               if verbose_mode:
                 tqdm.write("│ │  Removed: "+str(gcount)+" genres & "+str(scount)+" styles")
             else:
@@ -154,10 +175,12 @@ try:
               if verbose_mode:
                 tqdm.write('│ │  Adding: '+str(album_glist))
               if copy_to_styles:
-                album_direct.editTags("genre", album_glist, album_lock_bit).editTags("style", album_glist, album_lock_bit)
+                if not simulate_changes:
+                  album_direct.editTags("genre", album_glist, album_lock_bit).editTags("style", album_glist, album_lock_bit)
                 tqdm.write("│ └    Added: "+str(len(album_glist))+" genres/styles")
               else:
-                album_direct.editTags("genre", album_glist, album_lock_bit)
+                if not simulate_changes:
+                  album_direct.editTags("genre", album_glist, album_lock_bit)
                 tqdm.write("│ └    Added: "+str(len(album_glist))+" genres")
             except PlexApiException as err:
               tqdm.write('│ └    Error: '+str(err))
@@ -182,19 +205,21 @@ try:
         try:
           artist_direct = library.fetchItem(artist.key)
           if verbose_mode:
-            tqdm.write('│  Adding: '+str(artist_glist))
+            tqdm.write('│   Adding: '+str(artist_glist))
           if copy_to_styles:
-            artist_direct.editTags("genre", artist_glist, artist_lock_bit).editTags("style", artist_glist, artist_lock_bit)
+            if not simulate_changes:
+              artist_direct.editTags("genre", artist_glist, artist_lock_bit).editTags("style", artist_glist, artist_lock_bit)
             tqdm.write("│    Added: "+str(len(artist_glist))+" genres/styles")
           else:
-            artist_direct.editTags("genre", artist_glist, artist_lock_bit)
+            if not simulate_changes:
+              artist_direct.editTags("genre", artist_glist, artist_lock_bit)
             tqdm.write("│   Added: "+str(len(artist_glist))+" genres")
         except PlexApiException as err:
           collect_errors.append("Album Error: "+str(err))
           tqdm.write('│    Error: '+str(err))
           
       else:
-        tqdm.write("－ Skipping: "+str(artist.title))
+        tqdm.write("│ Skipping: "+str(artist.title))
 
     except ConnectionError as err:
       collect_errors.append("Artist Error: "+str(err))
