@@ -25,9 +25,9 @@ path_aliases = []
 # end user variables section
 
 parser = argparse.ArgumentParser()
-parser.add_argument('d', nargs='?', default='',  help='date range or start date')
-parser.add_argument('q', nargs='?', default='', help='artist or album search string')
-parser.add_argument('i', nargs='?', default=0, help='starting index (for resuming)')
+parser.add_argument('-d', nargs='?', default='',  help='date range or start date')
+parser.add_argument('-q', nargs='?', default='', help='artist or album search string')
+parser.add_argument('-i', nargs='?', default=0, help='starting index (for resuming)')
 args = parser.parse_args()
 search_string = args.q
 date_range = args.d
