@@ -3,10 +3,10 @@ Uses mutagen to read tags from music files and set genres/styles on a Plex serve
 
 WARNING: This is a simple script and does not have extensive error management. Use at your own risk. I STRONGLY suggest creating a new music library to test the script and/or use the search string or date options to limit it to a subset of artists. Only run it on your entire music library when you're sure it's behaving as desired. It may take several hours to run on a large music collection.
 
-Set the following at runtime: e.g. "plex-genres-from-tags.py d=12h"
-- d = date_range (change only recently-added albums and related artists - date as yyyy-mm-dd or duration e.g. 6h, 14d, or 1y)
-- q = search_string (optional artist name, limit which artist(s) are changed, matches partial names)
-- i = starting_index (in case you have to stop the script. restarts from X index)
+Set the following at runtime: e.g. "plex-genres-from-tags.py -d=12h"
+- -d = date_range (change only recently-added albums and related artists - date as yyyy-mm-dd or duration e.g. 6h, 14d, or 1y)
+- -q = search_string (optional artist name, limit which artist(s) are changed, matches partial names)
+- -i = starting_index (in case you have to stop the script. restarts from X index)
 
 Customize the following in the script file:
 - token (auth token - https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)
