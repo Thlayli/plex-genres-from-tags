@@ -6,6 +6,7 @@ from plexapi.myplex import MyPlexAccount
 from plexapi.exceptions import PlexApiException
 from plexapi.mixins import EditFieldMixin,EditTagsMixin
 from requests.exceptions import ConnectionError
+import argparse
 
 # start user variables section
 
@@ -13,10 +14,7 @@ server_name = 'xxxxxxxx'
 token = 'xxxxxxxxxxxxxxxxxxxx'
 library_number = ##
 
-search_string = ''
-date_range = ''
 tag_delimiter = ";"
-starting_index = 0
 skip_artists = ['Various Artists']
 copy_to_styles = True
 verbose_mode = False
@@ -25,6 +23,15 @@ lock_artists = False
 path_aliases = []
               
 # end user variables section
+
+parser = argparse.ArgumentParser()
+parser.add_argument('d', nargs='?', default='',  help='date range or start date')
+parser.add_argument('q', nargs='?', default='', help='artist or album search string')
+parser.add_argument('i', nargs='?', default=0, help='starting index (for resuming)')
+args = parser.parse_args()
+search_string = args.q
+date_range = args.d
+starting_index = args.i
 
 account = MyPlexAccount(token)
 plex = account.resource(server_name).connect()
