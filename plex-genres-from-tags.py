@@ -241,7 +241,7 @@ try:
                 album_direct = library.fetchItem(album.key)
                 if verbose_mode:
                   tqdm.write('│ │  Adding: '+str(album_glist))
-                if styles_source == "genres":
+                if styles_source == "genre":
                   if not simulate_changes:
                     album_direct.editTags("genre", album_glist, album_lock_bit).editTags("style", album_glist, album_lock_bit)
                   tqdm.write("│ └    Added: "+str(len(album_glist))+" genres/styles")
