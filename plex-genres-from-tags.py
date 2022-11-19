@@ -210,8 +210,6 @@ try:
                 album_slist = list(dict.fromkeys(album_styles))
                 album_changes.append([artist.title+' - '+album.title,album.key,album_slist])
                 tqdm.write("│ │   Styles: "+str(album_slist))
-              elif styles_source == "genre":
-                tqdm.write("│ │   Styles: "+str(album_glist))
 
               # clear existing genres
               if hasattr(album,'genres') and album.genres:
