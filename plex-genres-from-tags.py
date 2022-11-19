@@ -247,7 +247,7 @@ try:
                   tqdm.write("│ └    Added: "+str(len(album_glist))+" genres/styles")
                 elif styles_source == "grouping":
                   if not simulate_changes:
-                    album_direct.editTags("genre", album_glist, album_lock_bit).editTags("style", album_glist, album_lock_bit)
+                    album_direct.editTags("genre", album_glist, album_lock_bit).editTags("style", album_slist, album_lock_bit)
                   tqdm.write("│ └    Added: "+str(len(album_glist))+" genres & "+str(len(album_slist))+" styles")
                 else:
                   if not simulate_changes:
