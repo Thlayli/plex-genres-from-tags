@@ -3,10 +3,11 @@ Uses mutagen to read tags from music files and set genres/styles on a Plex serve
 
 WARNING: This is a simple script and does not have extensive error management. Use at your own risk. I STRONGLY suggest creating a new music library to test the script and/or use the search string or date options to limit it to a subset of artists. Only run it on your entire music library when you're sure it's behaving as desired. It may take several hours to run on a large music collection.
 
-Set the following at runtime: e.g. "plex-genres-from-tags.py -d=12h"
-- -d = date_range (change only recently-added albums and related artists - date as yyyy-mm-dd or duration e.g. 6h, 14d, or 1y)
-- -q = search_string (optional artist name, limit which artist(s) are changed, matches partial names)
-- -i = starting_index (in case you have to stop the script. restarts from X index)
+Set the following at runtime: e.g. "plex-genres-from-tags.py -range=12h"
+- -range (change only recently-added albums and related artists - date as yyyy-mm-dd or duration e.g. 6h, 14d, or 1y)
+- -search (optional artist name, limit which artist(s) are changed, matches partial names)
+- -index (in case you have to stop the script. restarts from X index)
+- -genre (limit changes to albums/artists matching a specific genre)
 
 Customize the following in the script file:
 - token (auth token - https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)
@@ -14,7 +15,7 @@ Customize the following in the script file:
 - library_number (found in the URL as source= when browsing a library)
 - skip_artists (optional list of artists to ignore, e.g. ['Various Artists'] - albums will still be updated.)
 - tag delimiter (how tags are separated in your ID3 tags, usually ";")
-- copy to styles (true/false - do you want the genre tags to also replace existing styles)
+- styles_source ("genre", "grouping", or "none" - choose where style tags come from, copied from genres, the grouping tags, or skip styles tags)
 - verbose mode (true/false - enables extra information while running)
 - lock albums (true/false - do you want the album genre/style fields to be locked after updating)
 - lock artists (true/false - do you want the artist genre/style fields to be locked after updating)
