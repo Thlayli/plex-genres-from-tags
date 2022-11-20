@@ -22,5 +22,5 @@ Customize the following in the script file:
 - lock albums (true/false - do you want the album genre/style fields to be locked after updating)
 - lock artists (true/false - do you want the artist genre/style fields to be locked after updating)
 - simulate_changes (true/false - print changes but leave server information intact
-- repair_mode (true/false - only change artists if genre and style have the same non-zero count the artist will be skipped")
+- repair_mode (true/false - only change artists if genre and style tags are empty or mismatched)
 - path aliases (list of string pairs - in case you're running the script from a different machine with different drive letters. All file paths will have these strings replaced.) e.g.  [['E:','H:'], ['F:','I:']] will replace the server drive letter E with mapped drive letter H and drive F with I
