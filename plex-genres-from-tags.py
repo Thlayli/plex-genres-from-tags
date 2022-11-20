@@ -62,7 +62,10 @@ j = 0;
 print("\n")
 
 if repair_mode:
-  print("Repair mode: if genre and style have the same non-zero count the artist will be skipped\n")
+  if style_source == genre:
+    print("Repair mode: only artists/albums whose genre/style counts mismatch or are 0 will be updated\n")
+  else:
+    print("Repair mode: only artists/albums with 0 genres/styles will be updated\n")
 
 try:
 
@@ -97,7 +100,7 @@ try:
     
     try:
       
-      if not repair_mode or len(artist.genres) != len(artist.styles) or len(artist.genres) == 0:
+      if not repair_mode or ((len(artist.genres) != len(artist.styles)) and style_source == "genre") or len(artist.genres) == 0:
         
         # set selected_albums to skipped_artist_albums if skip artist
         if not artist.title in skip_artists:
@@ -108,7 +111,7 @@ try:
             tqdm.write('│  Filter includes: '+str([v for (k,v) in skipped_artist_albums[artist_title].items()]))
           for k in skipped_artist_albums[artist_title]:
             album = library.fetchItem(k)
-            if not repair_mode or len(album.genres) != len(album.styles) or len(album.genres) == 0:
+            if not repair_mode or ((len(album.genres) != len(album.styles)) and style_source == "genre") or len(album.genres) == 0:
               selected_albums.append(album)
         
         # for each album
@@ -271,7 +274,6 @@ try:
             if not simulate_changes:
               artist.removeStyle([style.tag for style in artist.styles], False)
 
-
         # make artist changes
         if not artist_title in skip_artists:
           try:
@@ -312,7 +314,6 @@ try:
 
     tqdm.write("└ "+(str(j)+" albums checked for "+artist.title)+"\n")
     
-
 except requests.exceptions.RequestException as err:
   collect_errors.append("Connection Error: "+str(err))
   tqdm.write('│  Error: '+str(err))
