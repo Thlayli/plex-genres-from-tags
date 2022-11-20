@@ -62,7 +62,7 @@ j = 0;
 print("\n")
 
 if repair_mode:
-  if style_source == genre:
+  if style_source == "genre":
     print("Repair mode: only artists/albums whose genre/style counts mismatch or are 0 will be updated\n")
   else:
     print("Repair mode: only artists/albums with 0 genres/styles will be updated\n")
