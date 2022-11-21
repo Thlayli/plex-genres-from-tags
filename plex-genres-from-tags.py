@@ -160,8 +160,8 @@ try:
                 style_list = []
                 tag_location = ''
                 # check for various tag locations
-                if '\xa9grp' in adv_tags:
-                  tag_location = '\xa9grp'
+                if 'contentgroup' in adv_tags:
+                  tag_location = 'contentgroup'
                 if 'TIT1' in adv_tags:
                   tag_location = 'TIT1'
                 if 'grouping' in adv_tags:
