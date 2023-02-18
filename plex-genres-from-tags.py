@@ -46,7 +46,7 @@ simulate_changes = str(args.simulate).lower() in ['True', '1', 'yes']
 repair_mode = str(args.repair).lower() in ['True', '1', 'yes']
 
 # this mode depends on the output of "backup-albums.py", allowing faster scanning of the entire library in repair mode, contact me for early access
-use_csv_backup = True 
+use_csv_backup = False 
 
 account = MyPlexAccount(token)
 plex = account.resource(server_name).connect()
