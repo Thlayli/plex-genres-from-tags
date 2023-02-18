@@ -27,6 +27,7 @@ verbose_mode = False
 lock_albums = True
 lock_artists = True
 path_aliases = []
+path_prepend = ''
 
 # end user variables section
 
@@ -164,7 +165,8 @@ try:
           file = str(album.tracks()[0].media[0].parts[0].file).replace(baseurl,'')
           for alias in path_aliases:
             file = file.replace(alias[0], alias[1])
-            
+          file = path_prepend + file
+
           if verbose_mode:
             tqdm.write("│ │   Source: "+file)
           j = j+1
