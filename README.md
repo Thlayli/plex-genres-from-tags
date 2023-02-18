@@ -4,10 +4,12 @@ Uses mutagen to read tags from music files and set genres/styles on a Plex serve
 WARNING: This is a simple script and does not have extensive error management. Use at your own risk. I STRONGLY suggest creating a new music library to test the script and/or use the search string or date options to limit it to a subset of artists. Only run it on your entire music library when you're sure it's behaving as desired. It may take several hours to run on a large music collection.
 
 Set the following at runtime: e.g. "plex-genres-from-tags.py -range=12h"
-- -range (change only recent albums and related artists - date as yyyy-mm-dd or duration e.g. 6h, 14d, or 1y)
-- -search (optional artist name, limit which artist(s) are changed, matches partial names)
-- -index (in case you have to stop the script. restarts from X index)
-- -genre (limit changes to albums/artists matching a specific genre)
+- -range=datetime (change only recent albums and related artists - date as yyyy-mm-dd or duration e.g. 6h, 14d, or 1y)
+- -search=string (optional artist name, limit which artist(s) are changed, matches partial names)
+- -index=integer (in case you have to stop the script. restarts from X index)
+- -genre=string (limit changes to albums/artists matching a specific genre)
+- -simulate=true (default false) - don't write changes to plex
+- -repair=true  (default false) - only change artists with mismatched style/genre count or no genres/styles)
 
 Customize the following in the script file:
 - token (auth token - https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)
@@ -21,6 +23,4 @@ Customize the following in the script file:
 - verbose mode (true/false - enables extra information while running)
 - lock albums (true/false - do you want the album genre/style fields to be locked after updating)
 - lock artists (true/false - do you want the artist genre/style fields to be locked after updating)
-- simulate_changes (true/false - print changes but leave server information intact
-- repair_mode (true/false - only change artists if genre or style tags are empty or if they're mismatched when style_source is set to genre)
 - path aliases (list of string pairs - in case you're running the script from a different machine with different drive letters. All file paths will have these strings replaced.) e.g.  [['E:','H:'], ['F:','I:']] will replace the server drive letter E with mapped drive letter H and drive F with I
