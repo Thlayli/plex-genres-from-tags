@@ -34,14 +34,18 @@ path_prepend = ''
 parser = argparse.ArgumentParser()
 parser.add_argument('-range', nargs='?', default='',  help='date range or start date')
 parser.add_argument('-search', nargs='?', default='', help='artist or album search string')
-parser.add_argument('-genre', nargs='?', default='', help='genre search string')
+parser.add_argument('-genre', nargs='?', default='', help='search for specific genre (by #)')
+parser.add_argument('-style', nargs='?', default='', help='search for specific style (by #)')
 parser.add_argument('-index', nargs='?', default=0, help='starting index (for resuming)')
+parser.add_argument('-limit', nargs='?', default=999999, help='only process n artists')
 parser.add_argument('-simulate', nargs='?', default=False, help='don\'t write changes to plex')
 parser.add_argument('-repair', nargs='?', default=False, help='only change artists with mismatched style/genre count or no genres/styles')
 args = parser.parse_args()
 search_string = args.search
 genre_string = args.genre
+style_string = args.style
 date_range = args.range
+artist_limit = int(args.limit)
 starting_index = int(args.index)
 simulate_changes = str(args.simulate).lower() in ['True', '1', 'yes']
 repair_mode = str(args.repair).lower() in ['True', '1', 'yes']
@@ -57,6 +61,8 @@ library = plex.library.sectionByID(library_number)
 plex_filters = {"title": search_string, "addedAt>>": date_range} if date_range != '' else {"title": search_string}
 if not genre_string == "":
   plex_filters['genre'] = genre_string
+if not style_string == "":
+  plex_filters['style'] = style_string
 baseurl = str(plex._baseurl).replace('https://','')
 selected_artists = collections.OrderedDict()
 skipped_artist_albums = collections.OrderedDict()
@@ -80,7 +86,7 @@ if repair_mode:
 
 try:
 
-  if(search_string != '' or date_range != '' or use_csv_backup == False):
+  if(search_string != '' or date_range != '' or genre_string != '' or style_string != '' or use_csv_backup == False):
 
     # check recently added artists and albums
     for artist in tqdm(library.search(sort="titleSort:asc",filters=plex_filters,libtype='artist'), desc="Looking for Artists"):
@@ -95,7 +101,7 @@ try:
         skipped_artist_albums.setdefault(album.parentTitle, {})
         skipped_artist_albums[album.parentTitle].setdefault(album.key,album.title)
     
-  if use_csv_backup == True and not (search_string != '' or date_range != ''):
+  if use_csv_backup == True and not (search_string != '' or date_range != ''or genre_string != '' or style_string != ''):
     print("CSV mode: using data saved from backup-artists.py\n")
     # load csv data (from backup-artists.py)
     artist_dict = pd.read_csv("plex-artist-data.csv", index_col='artist').T.to_dict()
@@ -106,10 +112,10 @@ try:
     starting_index = 0
     tqdm.write("Starting index out of range. Starting from 0.")
     
-  for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_index:], desc="Scanning Tags", total=len(selected_artists),initial=starting_index):
+  for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_index:artist_limit], desc="Scanning Tags", total=len(selected_artists),initial=starting_index):
 
     j = 0
-    if(search_string != '' or date_range != '' or use_csv_backup == False):
+    if(search_string != '' or date_range != '' or genre_string != '' or style_string != '' or use_csv_backup == False):
       artist = library.fetchItem(artist_key)
       artist.reload()
       time.sleep(2)
@@ -166,7 +172,7 @@ try:
           for alias in path_aliases:
             file = file.replace(alias[0], alias[1])
           file = path_prepend + file
-
+          
           if verbose_mode:
             tqdm.write("│ │   Source: "+file)
           j = j+1
