@@ -7,7 +7,8 @@ Set the following at runtime: e.g. "plex-genres-from-tags.py -range=12h"
 - -range=datetime (change only recent albums and related artists - date as yyyy-mm-dd or duration e.g. 6h, 14d, or 1y)
 - -search=string (optional artist name, limit which artist(s) are changed, matches partial names)
 - -index=integer (in case you have to stop the script. restarts from X index)
-- -genre=string (limit changes to albums/artists matching a specific genre)
+- -genre=integer (limit changes to albums/artists matching a specific genre ID (find the ID at the end of the URL when filtering by genre)
+- -style=integer (limit changes to albums/artists matching a specific style ID (find the ID at the end of the URL when filtering by style)
 - -simulate=true (default false) - don't write changes to plex
 - -repair=true  (default false) - only change artists with mismatched style/genre count or no genres/styles)
 
