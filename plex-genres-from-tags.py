@@ -307,22 +307,25 @@ try:
             
             # remove existing artist genres
             if hasattr(artist,'genres') and artist.genres and (len(artist_glist) > 0 or genre_fallback == "remove"):
+              remove_tags = [quote(genre.tag) for genre in artist.genres]
               if verbose_mode:
                 tqdm.write("│ Removing: "+str([genre.tag for genre in artist.genres])+" from genres")
               if not simulate_changes:
-                artist.removeGenre([genre.tag for genre in artist.genres], False)
-                artist_changed == True
+                # artist.removeGenre([quote(genre.tag) for genre in artist.genres], False)
+                artist.editTags("genre", remove_tags, remove=True)
+                artist_changed = True
 
             # remove existing artist styles
             if (style_source == "grouping" and len(artist_slist) > 0) or (style_fallback == "genre" and len(artist_glist) > 0) or style_fallback == "remove":
               if hasattr(artist,'styles') and artist.styles:
+                remove_tags = [quote(style.tag) for style in artist.styles]
                 if verbose_mode:
                   tqdm.write("│ Removing: "+str([style.tag for style in artist.styles])+" from styles")
                 if not simulate_changes:
-                  artist.removeStyle([style.tag for style in artist.styles], False)
-                  artist_changed == True
+                  # artist.removeStyle([quote(style.tag) for style in artist.styles], False)
+                  artist.editTags("style", remove_tags, remove=True)
+                  artist_changed = True
                   
-            # slow down plex scanning
             if artist_changed:
               time.sleep(1)
               artist.reload()
