@@ -47,8 +47,8 @@ style_string = args.style
 date_range = args.range
 artist_limit = int(args.limit)
 starting_index = int(args.index)
-simulate_changes = str(args.simulate).lower() in ['True', '1', 'yes']
-repair_mode = str(args.repair).lower() in ['True', '1', 'yes']
+simulate_changes = str(args.simulate).lower() in ['true', '1', 'yes']
+repair_mode = str(args.repair).lower() in ['true', '1', 'yes']
 
 # this mode depends on the output of "backup-albums.py", allowing faster scanning of the entire library in repair mode, contact me for early access
 use_csv_backup = False 
