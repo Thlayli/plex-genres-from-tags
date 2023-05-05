@@ -17,6 +17,7 @@ Customize the following in the script file:
 - server_name (friendly server name from settings page)
 - library_number (found in the URL as source= when browsing a library)
 - skip_artists (optional list of artists to ignore, e.g. ['Various Artists'] - albums will still be updated.)
+- album_only_tags (optional list of tags to allow on albums but not artists, e.g. ['Christmas'])
 - tag delimiter (how tags are separated in your ID3 tags, usually ";")
 - style_source ("genre", "grouping", or "none" - choose where style tags come from, copied from genres, the grouping tags, or skip styles tags)
 - style_fallback ("remove", "ignore", or "genre" - choose what happens to plex tags if styles aren't found in style_source)
