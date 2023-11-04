@@ -175,24 +175,28 @@ for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_in
     artist_timer = time.perf_counter()
     tqdm.write("┌  Scanning: "+str(artist_title))
     
+    selected_albums = []
     if not artist.title in skip_artists:
       if use_csv_backup == True:
         selected_albums = [(k, v) for (k,v) in albums_dict.items() if v['parentKey'] == artist_key]
       else:
         # add all artist albums to selected_albums
-        selected_albums = artist.albums()
+
+        for a in artist.albums():
+          album = library.fetchItem(a.key)
+          selected_albums.append(album)
       
     else:
       # for skip_artists matches, add skipped_artist_albums to selected_albums so they get processed
-      selected_albums = []
+      
       if verbose_mode:
         tqdm.write('│  Filter includes: '+str([v for (k,v) in skipped_artist_albums[artist_title].items()]))
       if artist_title in skipped_artist_albums:
         # print(artist_title,len(skipped_artist_albums[artist_title]))
         for k in skipped_artist_albums[artist_title]:
           album = library.fetchItem(k)
-          if not repair_mode or ((len(album.genres) != len(album.styles)) and style_source == "genre") or not album.genres:
-            selected_albums.append(album)
+          # if not repair_mode or ((len(album.genres) != len(album.styles)) and style_source == "genre") or not album.genres:
+          selected_albums.append(album)
       else:
         tqdm.write('│ └ Skipping: no albums to check')
 
@@ -232,10 +236,8 @@ for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_in
       album_styles.clear()
 
       tqdm.write("│ ┌ Scanning: "+str(album.title))
-      
-      # tqdm.write(str(album.genres))
 
-      if not repair_mode or (len( album.genres) != len( album.styles) and style_source == "genre") or album.genres[0] == '':
+      if not repair_mode or (len(album.genres) != len(album.styles) and style_source == "genre") or (not hasattr(album,'genres') or len(album.genres) == 0 or album.genres[0] == ''):
 
         # connect to plex album
         if use_csv_backup:
@@ -497,7 +499,7 @@ for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_in
     # tqdm.write(str(artist.styles))
 
     # make artist changes
-    if not artist_title in skip_artists and not albums_only and (not repair_mode or len(artist.genres) != len(artist.styles) or artist.genres[0] == ''):
+    if not artist_title in skip_artists and not albums_only and (not repair_mode or len(artist.genres) != len(artist.styles) or (not hasattr(artist,'genres') or len(artist.genres) == 0 or artist.genres[0] == '')):
     
       # start batch mode for artist changes
       # if not simulate_changes:
