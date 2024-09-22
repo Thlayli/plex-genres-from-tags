@@ -23,11 +23,11 @@ library_number = ##
 
 tag_delimiter = ";"
 skip_artists = ['Various Artists']
-album_only_tags = ['Christmas']
-style_source = "grouping" # genre, grouping, or none
+album_only_tags = ['Christmas','Multichannel']
+style_source = "genre" # genre, none ("grouping" may still work, untested for a while)
 style_fallback = "genre" # remove, ignore, or genre
 genre_fallback = "remove" # remove or ignore
-verbose_mode = False
+preserve_order = True # faster if False but new tags are added to the end of the list
 lock_albums = True
 lock_artists = True
 path_aliases = []
@@ -62,11 +62,13 @@ artists_only = str(args.artistsonly).lower() in ['true', '1', 'yes']
 verbose_mode = str(args.verbose).lower() in ['true', '1', 'yes']
 use_csv_backup = str(args.csv).lower() in ['true', '1', 'yes']
 
-account = MyPlexAccount(token)
+account = MyPlexAccount(token=token)
 plex = account.resource(server_name).connect()
+library = plex.library.sectionByID(library_number)
+
+# only lock styles if enabled - plex fixed genre scanning
 album_lock_bit = 1 if lock_albums else 0
 artist_lock_bit = 1 if lock_artists else 0
-library = plex.library.sectionByID(library_number)
 
 
 plex_filters = {"title": search_string, "addedAt>>": date_range} if date_range != '' else {"title": search_string}
@@ -77,20 +79,20 @@ if not style_string == "":
 baseurl = str(plex._baseurl).replace('https://','')
 selected_artists = collections.OrderedDict()
 skipped_artist_albums = collections.OrderedDict()
-artist_changes = set()
-album_changes = []
+total_artist_changes = set()
+artist_album_changes = []
 collect_errors = []
 artist_genres = []
 album_genres = []
 artist_styles = []
 album_styles = []
-album_change_counter = 0;
+total_album_changes = 0;
 
 # print("using filters: ",plex_filters)
 
 if repair_mode:
   if style_source == "genre":
-    print("\nRepair mode: only albums whose genre/style counts mismatch or are 0 will be updated\n")
+    print("\nRepair mode: only albums whose genre/styles mismatch or are 0 will be updated\n")
   else:
     print("\nRepair mode: only albums with 0 genres or 0 styles will be updated\n")
 
@@ -105,15 +107,18 @@ if use_csv_backup == True:
   albums_dict = pd.read_csv("plex-album-data.csv", index_col='album', low_memory=False).sort_values(by=['originallyAvailableAt'],ascending=False).T.to_dict()
   # filter csv results (better way to do this?)
   if search_string != '':
-    selected_artists = dict([(k, v['title']) for (k,v) in artist_dict.items() if search_string.lower() in v['title'].lower()])
+    selected_artists = dict([("/library/metadata/"+str(k), v['title']) for (k,v) in artist_dict.items() if search_string.lower() in v['title'].lower()])
   else:
-    selected_artists = dict([(k, v['title']) for (k,v) in artist_dict.items()])
-    
+    selected_artists = dict([("/library/metadata/"+str(k), v['title']) for (k,v) in artist_dict.items()])
+
+  # print(artist_dict)
   # print(selected_artists)
 
 if(date_range != '' or genre_string != '' or style_string != '' or use_csv_backup == False):
 
+
   # check recently added artists and albums
+  search_timer = time.perf_counter()
   print("Searching for Artists...")
   for artist in library.search(sort="titleSort:asc",filters=plex_filters,libtype='artist'):
     selected_artists.setdefault(artist.key,artist.title)
@@ -125,12 +130,13 @@ if(date_range != '' or genre_string != '' or style_string != '' or use_csv_backu
       if not album.parentTitle in skip_artists:
         selected_artists.setdefault(album.parentKey,album.parentTitle)
       else:
-        # for skip_artists matches, add albums individually to avoid refreshing all albums
+        # for skip_artists (various artists) matches, add albums individually to avoid refreshing all albums
         selected_artists.setdefault(album.parentKey,album.parentTitle)
         # print('adding',album.title)
         skipped_artist_albums.setdefault(album.parentTitle, {})
         skipped_artist_albums[album.parentTitle].setdefault(album.key,album.title)
-  
+  tqdm.write("Search complete ["+str(round(time.perf_counter()-search_timer,2))+"s]")
+
 
 if starting_index > len(selected_artists):
   starting_index = 0
@@ -140,7 +146,7 @@ tqdm.write('Found '+str(len(selected_artists))+' artists')
 
 for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_index:artist_limit], desc="Scanning Artists", total=len(selected_artists),initial=starting_index, position=1, leave=False):
 
-  album_change_counter = 0
+  # album_change_counter = 0
   if(search_string != '' or date_range != '' or genre_string != '' or style_string != '' or use_csv_backup == False):
     artist = library.fetchItem(artist_key)
     # artist.reload()
@@ -148,17 +154,17 @@ for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_in
   else:
     # check genre/style count from csv to speed up repair mode
     artist = SimpleNamespace()
-    csv_artist = artist_dict[artist_key]
+    csv_artist = artist_dict[int(artist_key.replace("/library/metadata/",""))]
     artist_genre_tags = []
     for tag in csv_artist['genres'].split(", ") if ", " in csv_artist['genres'] else csv_artist['genres']:
       tag_object = SimpleNamespace()
-      tag_object.tag = tag.replace("-"," ").replace('Avant ','Avant-').replace(" Hop","-Hop").replace('J ','J-').replace('Synth metal','Symth-metal').replace('lo fi','Lo-Fi').replace('Post ','Post-').replace('Hi tech','Hi-tech').replace('Dance Punk','Dance-Punk')
+      tag_object.tag = tag.strip("\"' ")
       artist_genre_tags.append(tag_object)
     artist.genres = artist_genre_tags
     artist_style_tags = []
     for tag in csv_artist['styles'].split(", ") if ", " in csv_artist['styles'] else csv_artist['styles']:
       tag_object = SimpleNamespace()
-      tag_object.tag = tag.replace("-"," ").replace('Avant ','Avant-').replace(" Hop","-Hop").replace('J ','J-').replace('Synth metal','Symth-metal').replace('lo fi','Lo-Fi').replace('Post ','Post-').replace('Hi tech','Hi-tech').replace('Dance Punk','Dance-Punk')
+      tag_object.tag = tag.strip("\"' ")
       artist_style_tags.append(tag_object)
     artist.styles = artist_style_tags
     artist.title = csv_artist['title']
@@ -175,8 +181,11 @@ for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_in
     artist_timer = time.perf_counter()
     tqdm.write("┌  Scanning: "+str(artist_title))
     
+    if verbose_mode:
+      tqdm.write("│  Artist key: "+artist.key)
+    
     selected_albums = []
-    if not artist.title in skip_artists:
+    if not artist_title in skip_artists or search_string.lower() == artist_title.lower():
       if use_csv_backup == True:
         selected_albums = [(k, v) for (k,v) in albums_dict.items() if v['parentKey'] == artist_key]
       else:
@@ -204,45 +213,53 @@ for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_in
     tqdm.write('│  Found '+str(len(selected_albums))+' albums')
 
     # tqdm.write(str(selected_albums))
+    
+    artist_album_changes = []
         
     album_tqdm = tqdm(selected_albums, desc="└  Scanning Albums", position=0, leave=False)
+    album_timer = time.perf_counter()
+    
     for album_item in album_tqdm:
     
       # tqdm.write(str(album_item))
 
-      album_timer = time.perf_counter()
       
       # if not simulate_changes:
         # album.batchEdits()
 
       if use_csv_backup:
+      
         csv_album = albums_dict[album_item[1]['key']]
-        
         album = SimpleNamespace()
-        
-        album.genres = csv_album['genres'][1:-1].replace("-"," ").replace('Avant ','Avant-').replace(" Hop","-Hop").replace('J ','J-').replace('Synth metal','Symth-metal').replace('lo fi','Lo-Fi').replace('Post ','Post-').replace('Hi tech','Hi-tech').replace('Dance Punk','Dance-Punk').split(", ") if len(csv_album['genres'][1:-1]) > 0 else [csv_album['genres'][1:-1].replace("-"," ").replace('Avant ','Avant-').replace(" Hop","-Hop").replace('J ','J-').replace('Synth metal','Symth-metal').replace('lo fi','Lo-Fi').replace('Post ','Post-').replace('Hi tech','Hi-tech').replace('Dance Punk','Dance-Punk')]
-        
-        album.styles = csv_album['styles'][1:-1].replace("-"," ").replace('Avant ','Avant-').replace(" Hop","-Hop").replace('J ','J-').replace('Synth metal','Symth-metal').replace('lo fi','Lo-Fi').replace('Post ','Post-').replace('Hi tech','Hi-tech').replace('Dance Punk','Dance-Punk').split(", ") if len(csv_album['styles'][1:-1]) > 0 else [csv_album['styles'][1:-1].replace("-"," ").replace('Avant ','Avant-').replace(" Hop","-Hop").replace('J ','J-').replace('Synth metal','Symth-metal').replace('lo fi','Lo-Fi').replace('Post ','Post-').replace('Hi tech','Hi-tech').replace('Dance Punk','Dance-Punk')]
-        
+        album.genres = csv_album['genres'][1:-1]
+        album.styles = csv_album['styles'][1:-1]
         album.title = csv_album['title']
+        ag_string = str(album.genres)
+        as_string = str(album.styles)
         
       else:
+      
         album = album_item
+        ag_string = str(list(map(lambda o : o.tag, album.genres)))
+        as_string = str(list(map(lambda o : o.tag, album.styles)))
         
-      # tqdm.write(str(album.genres))
-      # tqdm.write(str(album.styles))
-
+      # tqdm.write(ag_string)
+      # tqdm.write(as_string)
+        
+       
       album_genres.clear()
       album_styles.clear()
 
-      tqdm.write("│ ┌ Scanning: "+str(album.title))
+      tqdm.write("│ ┌  Scanning: "+str(album.title))
 
-      if not repair_mode or (len(album.genres) != len(album.styles) and style_source == "genre") or (not hasattr(album,'genres') or len(album.genres) == 0 or album.genres[0] == ''):
+      if not repair_mode or (len(ag_string) != len(as_string) and style_source == "genre") or (not hasattr(album,'genres') or len(album.genres) == 0 or album.genres[0] == ''):
 
         # connect to plex album
         if use_csv_backup:
           album = library.fetchItem(album_item[1]['key'])
 
+        if verbose_mode:
+          tqdm.write("│ │   Album key: "+album.key)
 
         # get filename and adjust drive/path aliases
         file = str(album.tracks()[0].media[0].parts[0].file).replace(baseurl,'')
@@ -252,7 +269,7 @@ for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_in
         
         if verbose_mode:
           tqdm.write("│ │   Source: "+file)
-        album_change_counter = album_change_counter+1
+        # album_change_counter = album_change_counter+1
         
         try:
           # extract genre tags
@@ -312,123 +329,151 @@ for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_in
 
             # list genres for album
             album_glist = list(dict.fromkeys(album_genres))
-            album_changes.append([artist.title+' - '+album.title,album.key,album_glist])
-            tqdm.write("│ │   Genres: "+str(album_glist))
+            if verbose_mode:
+              tqdm.write("│ │   File genres: "+str(album_glist))
+            if verbose_mode:
+              tqdm.write("│ │   Plex genres: "+str([str(genre.tag) for genre in album.genres]))
 
             # list styles for album
             if style_source == "grouping":
               album_slist = list(dict.fromkeys(album_styles))
-              album_changes.append([artist.title+' - '+album.title,album.key,album_slist])
               if len(album_slist) > 0:
-                tqdm.write("│ │   Styles: "+str(album_slist))
-                
+                tqdm.write("│ │   File styles: "+str(album_slist))
+            if verbose_mode:
+              tqdm.write("│ │   Plex styles: "+str([str(style.tag) for style in album.styles]))
+
             # if not repair_mode or ((len( album.genres) != len( album.styles)) and style_source == "genre") or len(album.genres) == 0 or len(album.styles) == 0:
             
             # start = time.perf_counter()
             # make album changes
             try:
                           
-              # album = library.fetchItem(album.key)
-              if not simulate_changes:
-                album.batchEdits()
 
               # find tags to remove
               if preserve_order:
-                genres_to_remove = [genre.tag for genre in album.genres]
-                styles_to_remove = [style.tag for style in album.styles]
-              else:
-                genres_to_remove = [genre.tag for genre in album.genres if genre.tag not in album_glist]
-                if style_source == "grouping":
-                  styles_to_remove = [style.tag for style in album.styles if style.tag not in album_slist]
+                genres_to_remove = [str(genre.tag) for genre in album.genres] if not [tag.lower() for tag in album_glist] == [str(genre.tag).lower() for genre in album.genres] else []
+                if 'album_slist' in locals():
+                  styles_to_remove = [str(style.tag) for style in album.styles] if not [tag.lower() for tag in album_slist] == [str(style.tag).lower() for style in album.styles] else []
                 else:
-                  styles_to_remove = [style.tag for style in album.styles if style.tag not in album_glist]
+                  styles_to_remove = [str(style.tag) for style in album.styles] if not [tag.lower() for tag in album_glist] == [str(style.tag).lower() for style in album.styles] else []
+              else:
+                genres_to_remove = [str(genre.tag) for genre in album.genres if genre.tag.lower() not in [tag.lower() for tag in album_glist]]
+                if style_source == "grouping":
+                  styles_to_remove = [str(style.tag) for style in album.styles if style.tag.lower() not in [tag.lower() for tag in album_slist]]
+                else:
+                  styles_to_remove = [str(style.tag) for style in album.styles if style.tag.lower() not in [tag.lower() for tag in album_glist]]
                 
               # tqdm.write(str(genres_to_remove))
               # tqdm.write(str(styles_to_remove))
+              
+              if len(genres_to_remove) or len(styles_to_remove):
+                # album = library.fetchItem(album.key)
+                if verbose_mode:
+                  tqdm.write("│ │  Starting album edit...")
+                if not simulate_changes and not artists_only:
+                  album.batchEdits()
 
               # clear existing genres
-              if len(genres_to_remove) > 0 and hasattr(album,'genres') and album.genres and (len(album_glist) > 0 or genre_fallback == "remove"):
+              if len(genres_to_remove) and hasattr(album,'genres') and album.genres and (len(album_glist) or genre_fallback == "remove"):
                 gcount = len(album.genres)
-                remove_tags = [genre.tag for genre in album.genres]
-                if not simulate_changes:
-                  album.removeGenre(remove_tags, False)
+                if verbose_mode:
+                  tqdm.write("│ │  Clearing album genres...")
+                if not simulate_changes and not artists_only:
+                  album.removeGenre(genres_to_remove, False)
                   if verbose_mode:
-                    tqdm.write("│ │  Removed: "+str(remove_tags)+" from genres")
-                  # else:
-                    # tqdm.write("│ │  Removed: "+str(len([genre.tag for genre in album.genres]))+" genres")
+                    tqdm.write("│ │  Removed: "+str(genres_to_remove)+" from genres")
                   
-              # start = time.perf_counter()
               # clear existing styles
-              if len(styles_to_remove) > 0 and (style_source == "grouping" and len(album_slist) > 0) or (style_fallback == "genre" and len(album_glist) > 0) or style_fallback == "remove":
+              #if len(styles_to_remove) and (style_source == "grouping" and len(album_slist)) or (style_fallback == "genre" and len(album_glist)) or style_fallback == "remove":
+              if len(styles_to_remove) and ((style_source == "grouping" and len(album_slist)) or (style_fallback == "genre" and len(album_glist)) or style_fallback == "remove"):
                 scount = 0
+                if verbose_mode:
+                  tqdm.write("│ │  Clearing album styles...")
                 if hasattr(album,'styles') and album.styles:
                   scount = len(album.styles)
-                  remove_tags = [style.tag for style in album.styles]
-                  if not simulate_changes:
-                    album.removeStyle(remove_tags, False)
-                    if verbose_mode:
-                      tqdm.write("│ │  Removed: "+str(remove_tags)+" from styles")
-                    # else:
-                      # tqdm.write("│ │  Removed: "+str(len([style.tag for style in album.styles]))+" styles")
+                  if not simulate_changes and not artists_only:
+                    album.removeStyle(styles_to_remove, album_lock_bit)
+                    if verbose_mode and len(styles_to_remove):
+                      tqdm.write("│ │  Removed: "+str(styles_to_remove)+" from styles")
 
               # write album changes
-              if not simulate_changes:
+              if not simulate_changes and not artists_only and (len(genres_to_remove) or len(styles_to_remove)):
+                tqdm.write("│ │  Updating album...")
                 try:
                   album.saveEdits()
                 except requests.exceptions.RequestException as err:
                   collect_errors.append("Connection Error: "+str(err))
                   tqdm.write('│  Error: '+str(err))
                   continue
-                  
-              # restart batch edit
-              if not simulate_changes:
-                album.batchEdits()
+          
+              # fetch album again to prevent removed tags from reappearing (api bug?)
+              if use_csv_backup and not (simulate_changes and artists_only):
+                album = library.fetchItem(album_item[1]['key'])
+              else:
+                album = library.fetchItem(album.key)
+
 
               # find tags to add
-              if preserve_order:
-                genres_to_add = [genre for genre in album_glist]
-                if style_source == "grouping":
-                  styles_to_add = [style for style in album_slist]
-                else:
-                  styles_to_add = [style for style in album_glist]
+              genres_to_add = [tag for tag in album_glist if tag.lower() not in [str(genre.tag.lower()) for genre in album.genres]]
+              if style_source == "grouping":
+                styles_to_add = [tag for tag in album_slist if tag.lower() not in [str(style.tag.lower()) for style in album.styles]]
               else:
-                genres_to_add = [genre for genre in album_glist if genre not in [genre.tag for genre in album.genres]]
-                if style_source == "grouping":
-                  styles_to_add = [style for style in album_slist if style not in [style.tag for style in album.styles]]
-                else:
-                  styles_to_add = [style for style in album_glist if style not in [style.tag for style in album.styles]]
+                styles_to_add = [tag for tag in album_glist if tag.lower() not in [str(style.tag.lower()) for style in album.styles]]
 
-              if len(genres_to_add) > 0 or len(styles_to_add) > 0:
+              # restart batch edit
+              if not simulate_changes and not artists_only and (len(genres_to_add) or len(genres_to_add)):
                 if verbose_mode:
-                  tqdm.write('│ │   Adding: '+str(genres_to_add))
-                if style_source == "genre" and len(genres_to_add) > 0:
-                  if not simulate_changes:
-                    album.editTags("genre", genres_to_add, album_lock_bit).editTags("style", genres_to_add, album_lock_bit)
-                  tqdm.write("│ └    Added: "+str(len(genres_to_add))+" genres/styles")
-                elif (style_source == "grouping" and len(styles_to_add) > 0) or (len(genres_to_add) > 0 and style_fallback == "genre"):
-                  if not simulate_changes:
-                    if len(styles_to_add) > 0:
-                      album.editTags("genre", genres_to_add, album_lock_bit).editTags("style", styles_to_add, album_lock_bit)
+                  tqdm.write("│ │  Restarting album edit...")
+                album.batchEdits()
+            
+              if len(genres_to_add):
+                if verbose_mode:
+                  tqdm.write('│ │  Adding genres: '+str(genres_to_add))
+                artist_album_changes.append([artist.title+' - '+album.title,album.key,genres_to_add])
+                if not simulate_changes and not artists_only:
+                  album.editTags("genre", genres_to_add, 0)
+                tqdm.write("│ │  Added "+str(len(genres_to_add))+" genres")
+              
+              if len(styles_to_add) and not simulate_changes and not artists_only:
+                if verbose_mode:
+                  tqdm.write('│ │  Adding styles: '+str(styles_to_add))
+                  
+                if not len(genres_to_add):
+                  artist_album_changes.append([artist.title+' - '+album.title,album.key,styles_to_add])
+                
+                if (style_source == "grouping" and len(styles_to_add) > 0) or (len(genres_to_add) > 0 and style_fallback == "genre"):
+                  if not simulate_changes and not artists_only:
+                    if len(styles_to_add):
+                      album.editTags("style", styles_to_add, album_lock_bit)
                     else: 
                       # genre fallback
-                      album.editTags("genre", genres_to_add, album_lock_bit).editTags("style", genres_to_add, album_lock_bit)
-                  tqdm.write("│ └    Added: "+str(len(genres_to_add))+" genres & "+str(len(styles_to_add))+" styles")
-                elif len(genres_to_add) > 0:
-                  if not simulate_changes:
-                    album.editTags("genre", genres_to_add, album_lock_bit)
-                  tqdm.write("│ └    Added: "+str(len(genres_to_add))+" genres")
-                  
-                # write album changes
-                if not simulate_changes:
-                  try:
-                    album.saveEdits()
-                  except requests.exceptions.RequestException as err:
-                    collect_errors.append("Connection Error: "+str(err))
-                    tqdm.write('│  Error: '+str(err.split(": ")[1] if len(err.split(": ")) else err))
-                    continue
+                      album.editTags("style", genres_to_add, album_lock_bit)
+                else:
+                  album.editTags("style", styles_to_add, album_lock_bit)
+                    
+                tqdm.write("│ │  Added "+str(len(styles_to_add))+" styles")
+              
+              # update album change count
+              total_album_changes = total_album_changes + len(artist_album_changes)
+              
+              # write album changes
+              if not simulate_changes and not artists_only and (len(genres_to_add) or len(genres_to_add)):
+                if verbose_mode:
+                  tqdm.write("│ │  Updating album...")
+                try:
+                  album.saveEdits()
+                except requests.exceptions.RequestException as err:
+                  collect_errors.append("Connection Error: "+str(err))
+                  tqdm.write('│  Error: '+str(str(err).split(": ")[1] if len(str(err).split(": ")) else err))
+                  continue
+              
+              if not len(styles_to_add) and not len(styles_to_add):
+                tqdm.write("│ └  No changes needed")
+              else:
+                tqdm.write("│ └  Album updated")
               
             except PlexApiException as err:
-              tqdm.write('│ └  Server Error: '+str(err.split(": ")[1] if len(err.split(": ")) else err))
+              tqdm.write('│ └  Server Error: '+str(str(err).split(": ")[1] if len(str(err).split(": ")) else err))
                 
             gcount = 0
             scount = 0
@@ -438,40 +483,40 @@ for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_in
            tqdm.write("│ └  Error: no genre tags found")
            
           # slow down plex scanning
-          if use_csv_backup == False:
-            time.sleep(1)
+          # if use_csv_backup == False:
+            # time.sleep(1)
 
         except MutagenError as e:
           tqdm.write("│ └  Error: "+str(str(e).split(";")[0]))
 
-      # REPAIR MODE FOR ALBUMS - only store tags for artist check
+      # catch albums that didn't need repair - only store tags for artist check
       else:
         if repair_mode:
         
-          if use_csv_backup:
+          # if use_csv_backup:
           
-            # tqdm.write(str(album.genres))
-            # tqdm.write(str(album.styles))
-            
-            album_change_counter = album_change_counter+1
-            # list genres for album
-            album_glist = [g.split(":")[2][:-1] if len(g) else '' for g in album.genres]
-            for tag in album_glist:
-              if not tag in album_only_tags:
-                artist_genres.append(tag.strip())
-            if verbose_mode:
-              tqdm.write("│ │   Genres: "+str(album_glist))
+          # tqdm.write(str(album.genres))
+          # tqdm.write(str(album.styles))
+          
+          # album_change_counter = album_change_counter+1
+          # list genres for album
+          album_glist = [g.tag.strip("\"' ") if len(g.tag) else '' for g in album.genres]
+          for tag in album_glist:
+            if not tag.strip("\"' ") in album_only_tags:
+              artist_genres.append(tag.strip("\"' "))
+          if verbose_mode:
+            tqdm.write("│ │   Plex genres: "+str(album_glist))
 
-            # list styles for album
-            if style_source == "grouping":
-              album_slist = [s.split(":")[2][:-1] if len(s) else '' for s in album.styles] if len(album.styles) else []
-              for tag in album_slist:
-                if not tag in album_only_tags:
-                  artist_styles.append(tag.strip())
-              # album_changes.append([artist.title+' - '+album.title,album.key,album_slist])
-              if len(album_slist) > 0 and verbose_mode:
-                tqdm.write("│ │   Styles: "+str(album_slist))
-              
+          # list styles for album
+          if style_source == "grouping":
+            album_slist = [s.tag.strip("\"' ") if len(s.tag) else '' for s in album.styles] if len(album.styles) else []
+            for tag in album_slist:
+              if not tag.strip("\"' ") in album_only_tags:
+                artist_styles.append(tag.strip("\"' "))
+            # artist_album_changes.append([artist.title+' - '+album.title,album.key,album_slist])
+            if len(album_slist) > 0 and verbose_mode:
+              tqdm.write("│ │   Plex styles: "+str(album_slist))
+            
           tqdm.write('│ └  No repair needed')
           
           # tqdm.write(str(artist_genres))
@@ -486,8 +531,11 @@ for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_in
         # tqdm.write('│  Error: '+str(err))
         # continue
     
-    if verbose_mode:
-      tqdm.write("│  ["+str(round(time.perf_counter()-album_timer,2))+"s]")
+    # tqdm.write("│  Albums checked ["+str(round(time.perf_counter()-album_timer,2))+"s]")
+    if len(artist_album_changes) > 0 or repair_mode:
+      tqdm.write("│  "+str(len(artist_album_changes))+" albums updated ["+str(round((time.perf_counter()-album_timer),2))+"s]")
+    else:
+      tqdm.write("│  All albums skipped ["+str(round((time.perf_counter()-album_timer),2))+"s]")
 
     album_tqdm.clear()
     
@@ -497,30 +545,28 @@ for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_in
 
     # tqdm.write(str(artist.genres))
     # tqdm.write(str(artist.styles))
+    
 
     # make artist changes
-    if not artist_title in skip_artists and not albums_only and (not repair_mode or len(artist.genres) != len(artist.styles) or (not hasattr(artist,'genres') or len(artist.genres) == 0 or artist.genres[0] == '')):
+    if not artist_title in skip_artists and not albums_only and (not repair_mode or len(str(list(map(lambda o : o.tag, artist.genres)))) != len(str(list(map(lambda o : o.tag, artist.styles)))) or (not hasattr(artist,'genres') or len(artist.genres) == 0 or artist.genres[0] == '')):
     
-      # start batch mode for artist changes
-      # if not simulate_changes:
-        # artist.batchEdits()
-        
       try:
         artist_changed = False
         
         # find tags to remove
         if preserve_order:
-          genres_to_remove = [genre.tag for genre in artist.genres]
-          styles_to_remove = [style.tag for style in artist.styles]
+          genres_to_remove = [str(genre.tag) for genre in artist.genres] if [tag.lower() for tag in artist_glist] != [str(genre.tag).lower() for genre in artist.genres] else []
+          styles_to_remove = [str(style.tag) for style in artist.styles] if [tag.lower() for tag in artist_slist] != [str(style.tag).lower() for style in artist.styles] else []
         else:
-          genres_to_remove = [genre.tag for genre in artist.genres if genre.tag not in artist_glist]
-          styles_to_remove = [style.tag for style in artist.styles if style.tag not in artist_slist]
+          genres_to_remove = [str(genre.tag) for genre in artist.genres if genre.tag not in [tag.lower() for tag in artist_glist]]
+          styles_to_remove = [str(style.tag) for style in artist.styles if style.tag not in [tag.lower() for tag in artist_glist]]
 
         # tqdm.write(str(genres_to_remove))
         # tqdm.write(str(styles_to_remove))
 
-        if len(genres_to_remove) > 0 or len(styles_to_remove) > 0:
-          artist_changes.add(artist.title)
+        if len(genres_to_remove) > 0 or len(styles_to_remove) > 0 or len(artist.genres) == 0 or len(artist.styles) == 0:
+          tqdm.write("│  Updating artist...")
+          total_artist_changes.add(artist.title)
           # connect to plex artist
           if use_csv_backup:
             artist = library.fetchItem(artist_key)
@@ -540,70 +586,62 @@ for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_in
               # tqdm.write("│  Removed: "+str(len([genre.tag for genre in artist.genres]))+" genres ("+str(round(time.perf_counter()-start,2))+"s)")
 
           # remove existing artist styles
-          if (len(styles_to_remove) > 0 and style_source == "grouping" and len(artist_slist) > 0) or (style_fallback == "genre" and len(artist_glist) > 0) or style_fallback == "remove":
+          if (len(styles_to_remove) > 0 and ((style_source == "grouping" and len(artist_slist) > 0) or (style_fallback == "genre" and len(artist_glist) > 0) or style_fallback == "remove")):
             if hasattr(artist,'styles') and artist.styles:
               # remove_tags = [style.tag for style in artist.styles]
               if not simulate_changes:
-                artist.removeStyle(styles_to_remove, False)
+                artist.removeStyle(styles_to_remove, artist_lock_bit)
                 # artist.editTags("style", remove_tags, remove=True)
                 artist_changed = True
               if verbose_mode:
                 tqdm.write("│  Removed: "+str(styles_to_remove)+" from styles")
               # else:
                 # tqdm.write("│  Removed: "+str(len([style.tag for style in artist.styles]))+" styles ("+str(round(time.perf_counter()-start,2))+"s)")
-              
+
         if artist_changed:
           time.sleep(1)
           artist.reload()
 
         # find tags to add
         if preserve_order:
-          genres_to_add = [genre for genre in artist_glist]
+          genres_to_add = [genre for genre in artist_glist] if not [tag.lower() for tag in artist_glist] == [str(genre.tag).lower() for genre in artist.genres] else []
           if style_source == "grouping":
-            styles_to_add = [style for style in artist_slist]
+            styles_to_add = [style for style in artist_slist] if not [tag.lower() for tag in artist_slist] == [str(genre.tag).lower() for genre in artist.genres] else []
           else:
-            styles_to_add = [style for style in artist_glist]
+            # take styles from genres
+            styles_to_add = [style for style in artist_glist] if not [tag.lower() for tag in artist_glist] == [str(style.tag).lower() for style in artist.styles] else []
         else:
-          genres_to_add = [genre for genre in artist_glist if genre not in [genre.tag for genre in artist.genres]]
+          genres_to_add = [genre for genre in artist_glist if genre.lower() not in [str(genre.tag).lower() for genre in artist.genres]]
           if style_source == "grouping":
-            styles_to_add = [style for style in artist_slist if style not in [style.tag for style in artist.styles]]
+            styles_to_add = [style for style in artist_slist if style.lower() not in [str(style.tag).lower() for style in artist.styles]]
           else:
-            styles_to_add = [style for style in artist_glist if style not in [style.tag for style in artist.styles]]
+            # take styles from genres
+            styles_to_add = [style for style in artist_glist if style.lower() not in [str(style.tag).lower() for style in artist.styles]]
 
         if len(genres_to_add) > 0 or len(styles_to_add) > 0:
           # connect to plex artist
           if use_csv_backup:
             artist = library.fetchItem(artist_key)
 
-          artist_changes.add(artist.title)
+          total_artist_changes.add(artist.title)
           if verbose_mode:
             tqdm.write('│  Adding: '+str(artist_glist))
 
-          # start = time.perf_counter()
-          # update styles
-          if style_source == "genre" and len(genres_to_add) > 0:
+          # update genres & styles
+          if len(genres_to_add) > 0 and len(styles_to_add) > 0:
             if not simulate_changes:
-              # styles set from genre
-              artist.editTags("genre", genres_to_add, artist_lock_bit).editTags("style", artist_glist, artist_lock_bit)
-            tqdm.write("│  Added: "+str(len(genres_to_add))+" genres/styles")
-          elif (style_source == "grouping" and len(styles_to_add) > 0) or (len(genres_to_add) > 0 and style_fallback == "genre"):
-            if not simulate_changes:
-              if len(styles_to_add) > 0:
-                # styles set from grouping
-                artist.editTags("genre", genres_to_add, artist_lock_bit).editTags("style", styles_to_add, artist_lock_bit)
-              else: 
-                # genre fallback
-                artist.editTags("genre", genres_to_add, artist_lock_bit).editTags("style", genres_to_add, artist_lock_bit)
-            tqdm.write("│  Added: "+str(len(genres_to_add))+" genres & "+str(len(styles_to_add))+" styles")
+              artist.editTags("genre", genres_to_add, 0).editTags("style", styles_to_add, artist_lock_bit)
           elif len(genres_to_add) > 0:
             if not simulate_changes:
-              # styles left empty
-              artist.editTags("genre", genres_to_add, artist_lock_bit)
-            tqdm.write("│  Added: "+str(len(genres_to_add))+" genres")
+              artist.editTags("genre", genres_to_add, 0)
+          elif len(styles_to_add) > 0:
+            if not simulate_changes:
+              artist.editTags("style", styles_to_add, artist_lock_bit)
+          tqdm.write("│  Added "+str(len(genres_to_add))+" genres & "+str(len(styles_to_add))+" styles")
             
       except PlexApiException as err:
         collect_errors.append("Server Error: "+str(err))
-        tqdm.write('│  Error: '+str(err.split(": ")[1] if len(err.split(": ")) else err))
+        tqdm.write('│  Error: '+str(str(err).split(": ")[1] if ": " in str(err) else str(err)))
         
     else:
       if repair_mode:
@@ -611,24 +649,14 @@ for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_in
       else:
         tqdm.write("│  Skipping: "+str(artist.title))
       
-
-
   except requests.exceptions.RequestException as err:
     collect_errors.append("Connection Error: "+str(err))
-    tqdm.write('└  Error: '+str(err.split(": ")[1] if len(err.split(": ")) else err))
-    
-  # write artist changes
-  # if not simulate_changes:
-    # try:
-      # artist.saveEdits()
-    # except requests.exceptions.RequestException as err:
-      # collect_errors.append("Connection Error: "+str(err))
-      # tqdm.write('│  Error saving artist: '+str(err))
+    tqdm.write('└  Error: '+str(str(err).split(": ")[1] if ": " in str(err) else str(err)))
       
-  if album_change_counter > 0 or repair_mode:
-    tqdm.write("└  "+(str(album_change_counter)+" albums changed for "+artist.title) + " ["+str(round((time.perf_counter()-artist_timer)/60,2))+"m]")
+  if ('genres_to_add' in vars() and len(genres_to_add) > 0) or ('styles_to_add' in vars() and len(styles_to_add) > 0):
+    tqdm.write("└  Artist updated ["+str(round((time.perf_counter()-artist_timer)/60,2))+"m]")
   else:
-    tqdm.write("└  All albums skipped for "+artist.title + " ["+str(round((time.perf_counter()-artist_timer)/60,2))+"m]")
+    tqdm.write("└  Artist unchanged ["+str(round((time.perf_counter()-artist_timer)/60,2))+"m]")
 
     
   if artist_limit == 999999:
@@ -639,7 +667,7 @@ for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_in
       tqdm.write(" ")
   
 
-tqdm.write(" "+("Genres/styles" if not style_source == 'none' else "Genres")+" updated for "+str(len(artist_changes))+(" artists" if len(artist_changes) != 1 else " artist")+" and "+str(len(album_changes))+" albums ["+str(round((time.perf_counter()-main_timer)/60,2))+"m]")
+tqdm.write(" "+("Genres/styles" if not style_source == 'none' else "Genres")+" updated for "+str(len(total_artist_changes))+(" artists" if len(total_artist_changes) != 1 else " artist")+" and "+str(total_album_changes)+" albums ["+str(round((time.perf_counter()-main_timer)/60,2))+"m]")
 
 if len(collect_errors) > 0:
   tqdm.write("Errors: "+str(len(collect_errors)))
