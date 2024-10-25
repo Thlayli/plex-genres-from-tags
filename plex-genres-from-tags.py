@@ -378,10 +378,11 @@ for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_in
                 gcount = len(album.genres)
                 if verbose_mode:
                   tqdm.write("│ │  Clearing album genres...")
-                if not simulate_changes and not artists_only:
-                  album.removeGenre(genres_to_remove, False)
+                if not artists_only:
                   if verbose_mode:
                     tqdm.write("│ │  Removed: "+str(genres_to_remove)+" from genres")
+                  if not simulate_changes:
+                    album.removeGenre(genres_to_remove, False)
                   
               # clear existing styles
               #if len(styles_to_remove) and (style_source == "grouping" and len(album_slist)) or (style_fallback == "genre" and len(album_glist)) or style_fallback == "remove":
@@ -391,16 +392,18 @@ for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_in
                   tqdm.write("│ │  Clearing album styles...")
                 if hasattr(album,'styles') and album.styles:
                   scount = len(album.styles)
-                  if not simulate_changes and not artists_only:
-                    album.removeStyle(styles_to_remove, album_lock_bit)
+                  if not artists_only:
                     if verbose_mode and len(styles_to_remove):
                       tqdm.write("│ │  Removed: "+str(styles_to_remove)+" from styles")
+                    if not simulate_changes:
+                      album.removeStyle(styles_to_remove, album_lock_bit)
 
               # write album changes
-              if not simulate_changes and not artists_only and (len(genres_to_remove) or len(styles_to_remove)):
+              if not artists_only and (len(genres_to_remove) or len(styles_to_remove)):
                 tqdm.write("│ │  Updating album...")
                 try:
-                  album.saveEdits()
+                  if not simulate_changes:
+                    album.saveEdits()
                 except requests.exceptions.RequestException as err:
                   collect_errors.append("Connection Error: "+str(err))
                   tqdm.write('│  Error: '+str(err))
@@ -421,10 +424,11 @@ for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_in
                 styles_to_add = [tag for tag in album_glist if tag.lower() not in [str(style.tag.lower()) for style in album.styles]]
 
               # restart batch edit
-              if not simulate_changes and not artists_only and (len(genres_to_add) or len(genres_to_add)):
+              if not artists_only and (len(genres_to_add) or len(genres_to_add)):
                 if verbose_mode:
                   tqdm.write("│ │  Restarting album edit...")
-                album.batchEdits()
+                if not simulate_changes:
+                  album.batchEdits()
             
               if len(genres_to_add):
                 if verbose_mode:
@@ -434,7 +438,7 @@ for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_in
                   album.editTags("genre", genres_to_add, 0)
                 tqdm.write("│ │  Added "+str(len(genres_to_add))+" genres")
               
-              if len(styles_to_add) and not simulate_changes and not artists_only:
+              if len(styles_to_add) and not artists_only:
                 if verbose_mode:
                   tqdm.write('│ │  Adding styles: '+str(styles_to_add))
                   
@@ -449,19 +453,21 @@ for (artist_key,artist_title) in tqdm(list(selected_artists.items())[starting_in
                       # genre fallback
                       album.editTags("style", genres_to_add, album_lock_bit)
                 else:
-                  album.editTags("style", styles_to_add, album_lock_bit)
+                  if not simulate_changes:
+                    album.editTags("style", styles_to_add, album_lock_bit)
                     
                 tqdm.write("│ │  Added "+str(len(styles_to_add))+" styles")
-              
+
               # update album change count
               total_album_changes = total_album_changes + len(artist_album_changes)
               
               # write album changes
-              if not simulate_changes and not artists_only and (len(genres_to_add) or len(genres_to_add)):
+              if not artists_only and (len(genres_to_add) or len(genres_to_add)):
                 if verbose_mode:
                   tqdm.write("│ │  Updating album...")
                 try:
-                  album.saveEdits()
+                  if not simulate_changes:
+                    album.saveEdits()
                 except requests.exceptions.RequestException as err:
                   collect_errors.append("Connection Error: "+str(err))
                   tqdm.write('│  Error: '+str(str(err).split(": ")[1] if len(str(err).split(": ")) else err))
